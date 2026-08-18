@@ -1,12 +1,13 @@
 # Example file showing a basic pygame "game loop"
 import pygame as pg
+from PIL import Image
 
 '''
 --> board: 500 x 500 | cell = 62.5 x 62.5 | peice in array = 60 x 60
 --> black_queen: 1  | black_king: 2  | black_rook: 3  | black_knight: 4  | black_bishop: 5  | black_pawn: 6
 --> white_queen: -1 | white_king: -2 | white_rook: -3 | white_knight: -4 | white_bishop: -5 | white_pawn: -6
 --> Nothing: 0
-example to place a black knight:  screen.blit(peices,(5*62.5 +20 , 2*62.5 +20),pg.Rect(3*60,0,60,60))
+example to place a black knight:  screen.blit(peices,(5*(cell) +20 , 2*cell +20),pg.Rect(3*peices_side,0,peices_side,peices_side))
 '''
 
 print('''\n\n\n\n\n\n
@@ -17,33 +18,46 @@ moves = []
 kingloc = [[7,4],[0,4],'wnotmoved','bnotmoved']#contains kings location = [white_king , black_king ,white_king_moved , black_king_moved]
 isrookmoved = ['wlnotmoved','wrnotmoved','blnotmoved','brnotmoved']#[white_left_rook_moved , white_right_rook_moved , black_left_rook_moved , black_right_rook_moved]
 flag = []
+board_imgpath = r'assets\chessboard3.png'
+peices_imgpath = r'assets\chess_pieces.png'
 pins = {}#it contains info of pinned peices in format {peice location : pinning peice location}
 
 # pygame setup
 pg.init()
-offset = 20;board_side = 500;cell = (board_side/8)
+with Image.open(board_imgpath) as img:
+    width, height = img.size
+    if width == height: board_side = width
+    else: print('board image is not square');quit()
+
+with Image.open(peices_imgpath) as img:
+    width, height = img.size
+    peices_side = width//6
+
+cell = (board_side/8) ; offset = int(cell/3)
 
 screen = pg.display.set_mode((board_side +2*offset , board_side +2*offset)) ;screen.fill('gray')
 clock = pg.time.Clock()
 running = True
-boardimg = pg.image.load(r'assets\chessboard1.png')
-peices = pg.image.load(r'assets\chess_pieces.png')
-text_font = pg.font.Font(None,25)
+boardimg = pg.image.load(board_imgpath)
+peices = pg.image.load(peices_imgpath)
+text_font = pg.font.Font(None , int(cell/2.4))
 #title
 pg.display.set_caption("CHESS")
 icon = pg.Surface((32, 32))
 icon.fill((0, 0, 0)) ;pg.draw.circle(icon, (255, 0, 0), (16,16), 7)
 pg.display.set_icon(icon)
+
 #---------------------------------------------------------------------------------------------
 board = []
 def numbers():
     for i in range(8):
         tsur1 = text_font.render(str(i),True,'black') 
         tsur2 = text_font.render(str(i),True,'black')
-        screen.blit(tsur1,(offset/4,(i)*cell +offset +25))
-        screen.blit(tsur2,((i)*cell +offset +25,offset/4))
 
-def initial():#setup's board in that list in required format
+        screen.blit(tsur1 , (offset/4  ,  (i)*cell + offset + int(cell/2.5)))
+        screen.blit(tsur2 , ((i)*cell + offset + int(cell/2.5)  ,  offset/4))
+
+def initial():#setup's board variable in that list in required format
     order = [3,4,5,1,2,5,4,3]
     board.append(order);board.append([6,6,6,6 ,6,6,6,6])
     for i in range(4):board.append([0,0,0,0 ,0,0,0,0])
@@ -54,8 +68,16 @@ def load_board():
     for i in range(len(board)):
         for j in range(len(board[i])):
             val = board[i][j]
-            if val>0:   screen.blit(peices,(j*cell +offset , i*cell +offset),pg.Rect((val-1)*60,0,60,60))
-            elif val<0: screen.blit(peices,(j*cell +offset , i*cell +offset),pg.Rect(-(val+1)*60,60,60,60))
+
+            if val>0:
+                croppedsec = peices.subsurface( pg.Rect((val-1)*peices_side,0,peices_side,peices_side) )
+                peiceimg = pg.transform.smoothscale(croppedsec, (cell , cell) )
+                screen.blit(peiceimg , (j*cell +offset , i*cell +offset))
+
+            elif val<0:
+                croppedsec = peices.subsurface( pg.Rect(-(val+1)*peices_side,peices_side,peices_side,peices_side) )
+                peiceimg = pg.transform.smoothscale(croppedsec, (cell , cell) )#scaling cropped image to cell size
+                screen.blit(peiceimg , (j*cell +offset , i*cell +offset))
             else:pass
 
 def highlight(x,y,color = (235,215,0)):#position of cell on board acc to number lines
