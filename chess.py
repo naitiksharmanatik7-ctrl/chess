@@ -3,6 +3,7 @@ import pygame as pg
 from PIL import Image
 
 '''
+make sure you are running it in python 3.12 (for pygame) above modules are installed
 --> board: 500 x 500 | cell = 62.5 x 62.5 | peice in array = 60 x 60
 --> black_queen: 1  | black_king: 2  | black_rook: 3  | black_knight: 4  | black_bishop: 5  | black_pawn: 6
 --> white_queen: -1 | white_king: -2 | white_rook: -3 | white_knight: -4 | white_bishop: -5 | white_pawn: -6
@@ -10,9 +11,7 @@ from PIL import Image
 example to place a black knight:  screen.blit(peices,(5*(cell) +20 , 2*cell +20),pg.Rect(3*peices_side,0,peices_side,peices_side))
 '''
 
-print('''\n\n\n\n\n\n
-+1 sign = black peices and -1 sign = white peices \n
-''')
+print('\n\n\n\n\n\n+1 sign = black peices and -1 sign = white peices \n')
 
 moves = [] 
 kingloc = [[7,4],[0,4],'wnotmoved','bnotmoved']#contains kings location = [white_king , black_king ,white_king_moved , black_king_moved]

@@ -1,0 +1,561 @@
+================================================================================
+                    CHESS GAME PROJECT - COMPLETE DOCUMENTATION
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+This is a fully functional chess game built using Python and Pygame. The project
+implements a complete chess engine with board representation, piece movement 
+logic, check detection, castling, and move validation. The game features:
+- Interactive 8x8 chess board UI
+- Full piece movement and capture mechanics
+- Check detection and validation
+- Castling support
+- Move history and backtracking (Ctrl+Z)
+- Visual highlighting of available moves
+
+PROJECT STRUCTURE
+================================================================================
+chess/
+├── chess.py                    # Main game file (all game logic)
+├── DOCUMENTATION.txt           # This file
+├── README.md                   # Project title
+└── assests/
+    ├── chessboard3.png         # Chess board background image
+    └── chess_pieces.png        # Sprite sheet with all piece images
+
+
+================================================================================
+BOARD REPRESENTATION & PIECE ENCODING
+================================================================================
+
+BOARD STRUCTURE:
+- The board is an 8x8 2D array (list of lists) called "board"
+- board[i][j] represents the cell at row i, column j
+- Rows 0-7 represent ranks 1-8 from bottom to top (in traditional chess notation)
+- Columns 0-7 represent files a-h from left to right
+
+PIECE ENCODING SYSTEM:
+Positive numbers = Black pieces
+Negative numbers = White pieces
+0 = Empty cell
+
+Piece Values:
+- Queen:  1 (black) / -1 (white)
+- King:   2 (black) / -2 (white)
+- Rook:   3 (black) / -3 (white)
+- Knight: 4 (black) / -4 (white)
+- Bishop: 5 (black) / -5 (white)
+- Pawn:   6 (black) / -6 (white)
+
+EXAMPLE:
+board[0][0] = 3  means Black Rook at top-left corner
+board[7][0] = -3 means White Rook at bottom-left corner
+board[3][3] = 0  means Empty cell
+
+BOARD DIMENSIONS:
+- Visual board size: 500 x 500 pixels
+- Cell size: 62.5 x 62.5 pixels
+- Offset (margin): 20 pixels around the board
+- Piece images in sprite sheet: 60 x 60 pixels each
+
+
+================================================================================
+GLOBAL VARIABLES & DATA STRUCTURES
+================================================================================
+
+moves = []
+  - Stores move history for backtracking functionality
+  - Format: [(piece_value, old_location, new_location), ...]
+  - Extended format for captures: (..., captured_piece_value)
+
+kingloc = [[7,4], [0,4], 'wnotmoved', 'bnotmoved']
+  - kingloc[0] = [row, col] of white king
+  - kingloc[1] = [row, col] of black king
+  - kingloc[2] = 'wnotmoved' or 'wmoved' (for castling validation)
+  - kingloc[3] = 'bnotmoved' or 'bmoved' (for castling validation)
+
+isrookmoved = ['wlnotmoved', 'wrnotmoved', 'blnotmoved', 'brnotmoved']
+  - Tracks whether each rook has moved (used for castling)
+  - wlnotmoved/wlmoved = white left rook (at row 7, col 0)
+  - wrnotmoved/wrmoved = white right rook (at row 7, col 7)
+  - blnotmoved/blmoved = black left rook (at row 0, col 0)
+  - brnotmoved/brmoved = black right rook (at row 0, col 7)
+
+flag = []
+  - Tracks if a king is in check
+  - Format: ['check', [king_row, king_col]] when a king is in check
+  - Empty when no check is active
+
+pins = {}
+  - Tracks pinned pieces (pieces that can't move because moving would expose king)
+  - Format: {(pinned_piece_row, pinned_piece_col): (pinning_piece_row, pinning_piece_col)}
+  - Example: {(3,4): (0,4)} means piece at (3,4) is pinned by piece at (0,4)
+
+next_moves = []
+  - List of valid squares the selected piece can move to
+  - Format: [(row, col), (row, col), ...]
+  - Populated by calnextmoves() function
+  - Cleared after each move
+
+change_peice = [piece_value, [row, col]]
+  - Stores which piece is currently selected for movement
+  - change_peice[0] = the piece value (e.g., 1 for black queen)
+  - change_peice[1] = the location [row, col] of the piece
+
+turn = -1 or 1
+  - -1 = White's turn
+  - 1 = Black's turn
+  - Switches after each move
+
+
+================================================================================
+KEY FUNCTIONS - DETAILED EXPLANATION
+================================================================================
+
+UTILITY FUNCTIONS:
+--------------------
+
+tellsign(x)
+  Purpose: Returns the sign of a number to indicate piece color
+  Parameters: x = integer (board value)
+  Returns: 1 (positive/black), -1 (negative/white), or 0 (empty)
+  Usage: tellsign(5) returns 1 (black bishop)
+         tellsign(-2) returns -1 (white king)
+         tellsign(0) returns 0 (empty cell)
+
+numbers()
+  Purpose: Renders coordinate labels (0-7) around the board edges
+  Displays: Row numbers on the left, column numbers on the top
+  Called: Once at game startup, then during each frame update
+
+highlight(x, y, color=(235, 215, 0))
+  Purpose: Draws a yellow border around a selected cell
+  Parameters: x = row, y = column, color = RGB tuple
+  Visual: 4-pixel thick yellow rectangle around the cell
+  Usage: Highlights the currently selected square
+
+rectangle(x, y)
+  Purpose: Draws a red border around a cell containing an opponent's piece
+  Indicates: This cell can be captured
+  Visual: 3-pixel thick red rectangle
+
+draw_circle(x, y)
+  Purpose: Draws a light blue circle in the center of an empty cell
+  Indicates: This cell can be moved to (non-capture move)
+  Visual: Small filled circle (radius 10 pixels)
+
+
+BOARD MANAGEMENT:
+--------------------
+
+initial()
+  Purpose: Sets up the starting chess position on the board
+  Action: Populates the board array with all pieces in correct positions
+  Board Layout:
+    Row 0: [3, 4, 5, 1, 2, 5, 4, 3]  (black pieces)
+    Row 1: [6, 6, 6, 6, 6, 6, 6, 6]  (black pawns)
+    Rows 2-5: All zeros (empty squares)
+    Row 6: [-6, -6, -6, -6, -6, -6, -6, -6] (white pawns)
+    Row 7: [-3, -4, -5, -1, -2, -5, -4, -3] (white pieces)
+  Called: Once when game starts
+
+load_board()
+  Purpose: Renders the chess board and all pieces on screen every frame
+  Process:
+    1. Blits (draws) the board background image
+    2. Iterates through the board array
+    3. For each piece, extracts the corresponding image from the sprite sheet
+    4. Scales the image to cell size
+    5. Draws the piece at the correct board position
+  Performance: Called every game loop iteration (60 FPS)
+
+
+MOVEMENT LOGIC:
+--------------------
+
+line(point, direc, ignore_peices=[0])
+  Purpose: Gets all squares in a straight line from a starting point
+  Parameters:
+    - point = (row, col) starting position
+    - direc = direction string ('n','s','e','w','ne','nw','se','sw')
+    - ignore_peices = list of piece signs to ignore (continue through)
+  Returns: List of (row, col) tuples in the specified direction
+  Logic:
+    - Moves one square at a time in the specified direction
+    - Stops at board edge or when encountering an opponent's piece
+    - For 'ignore_peices=[0]': stops at any piece
+    - For 'ignore_peices=[0, -1]': continues through empty and opponent pieces
+  Example: line((4,4), 'n') returns squares north from (4,4) until blocked
+
+direction(point1, point2)
+  Purpose: Calculates direction from one point to another
+  Parameters: point1 = (row, col) from point, point2 = (row, col) to point
+  Returns: Direction string ('n', 's', 'e', 'w', or combinations like 'ne')
+  Example: direction((4,4), (2,6)) returns 'ne' (northeast)
+
+calnextmoves(x, y, show=True)
+  Purpose: Calculates all valid moves for a piece at position (x,y)
+  Parameters:
+    - x, y = position on board
+    - show = True draws visual indicators on screen
+  Global Updates:
+    - next_moves = populated with all valid destination squares
+    - change_peice = set to [piece_value, [x, y]]
+  Logic:
+    PAWNS (-6, 6):
+      - Can move forward 1 square if empty
+      - Can move forward 2 squares from starting position (row 1 or 6)
+      - Can capture diagonally forward (+1 or -1 in column)
+    
+    KNIGHTS (-4, 4):
+      - Can move in L-shape (8 possible positions)
+      - Can capture on landing square
+      - Can jump over pieces
+    
+    KINGS (-2, 2):
+      - Can move 1 square in any direction
+      - Cannot move to banned positions (under attack)
+      - Can capture adjacent opponent pieces
+    
+    QUEENS (-1, 1):
+      - Combines rook + bishop movement
+      - Can move any distance horizontally, vertically, or diagonally
+      - Blocked by pieces (can't jump)
+      - Can capture at any distance
+    
+    ROOKS (-3, 3):
+      - Can move any distance horizontally or vertically
+      - Blocked by pieces (can't jump)
+      - Can capture at any distance
+    
+    BISHOPS (-5, 5):
+      - Can move any distance diagonally
+      - Blocked by pieces (can't jump)
+      - Can capture at any distance
+  
+  Check Handling:
+    - If king is in check (flag is active)
+    - Only shows moves that block the check or capture checking piece
+  
+  Visual Indicators:
+    - Light blue circles = available non-capture moves
+    - Red rectangles = available capture moves
+
+
+CHECK & PIN DETECTION:
+--------------------
+
+banned_pos(turn)
+  Purpose: Calculates which squares around the king are under attack
+  Parameters: turn = -1 (white king) or 1 (black king)
+  Returns: Set of (row, col) tuples that are under attack
+  Process:
+    1. Gets all squares adjacent to the king
+    2. Iterates through all opponent pieces
+    3. For each opponent piece, calculates where it can move
+    4. Collects any attacked squares
+    5. Excludes those squares from king's possible moves
+  Usage: Prevents king from moving into check
+
+valid_points_in_check(sign)
+  Purpose: Returns squares where a piece can move when king is in check
+  Parameters: sign = piece sign (1 for black, -1 for white)
+  Returns: List of valid squares between king and attacking piece
+  Logic:
+    - Gets the line from king to attacking piece
+    - These are the only legal moves available during check
+    - Allows moving to block or capturing the attacking piece
+
+ispinning(peice_loc)
+  Purpose: Checks if a piece is pinning another piece
+  Parameters: peice_loc = (row, col) of the potentially pinning piece
+  Returns: (True, ((pinned_row, pinned_col), (pinning_row, pinning_col))) if pinned
+           (False, None) if not pinning
+  Logic:
+    - Checks all 8 directions from the piece
+    - Looks for enemy king in line
+    - If exactly one friendly piece between this piece and enemy king
+    - That friendly piece is pinned (can't move or will expose king)
+  Usage: Prevents illegal moves that would expose own king to check
+
+
+CASTLING:
+--------------------
+
+canitcastle(kinglocation)
+  Purpose: Determines if castling is legal for a king
+  Parameters: kinglocation = [row, col] of the king
+  Returns: [can_castle_left, can_castle_right] list of booleans
+  Castling Requirements:
+    - King must not have moved (tracked in kingloc array)
+    - Rook must not have moved (tracked in isrookmoved array)
+    - All squares between king and rook must be empty
+    - King must not be in check (not implemented in current version)
+  Returns:
+    [0] = True if queenside castling is legal (left/0-file side)
+    [1] = True if kingside castling is legal (right/7-file side)
+
+
+USER INTERACTION:
+--------------------
+
+click(x, y)
+  Purpose: Handles all mouse click events on the board
+  Parameters: x = row, y = column (converted from pixel coordinates)
+  Process:
+    1. Load and display the board
+    2. Highlight the clicked square
+    3. If a piece is selected and clicked square is valid:
+       - Move piece to new location
+       - Update king location if king moved
+       - Update rook status if rook moved
+       - Check if opponent king is in check
+       - Switch turn to opponent
+    4. If clicking on own piece:
+       - Select that piece
+       - Display available moves (highlighted circles)
+  Move Validation:
+    - Only allows moves to squares in next_moves list
+    - Checks piece ownership (turn validation)
+    - Tracks captured pieces for backtracking
+
+backtrack()
+  Purpose: Undoes the last move (Ctrl+Z functionality)
+  Process:
+    1. Gets the last move from moves array
+    2. Restores captured piece if applicable
+    3. Returns the moving piece to its original location
+    4. Redraws the board
+    5. Removes the move from history
+  Supported: Can backtrack multiple times to any earlier position
+
+
+GAME INITIALIZATION & MAIN LOOP:
+--------------------
+
+Game Startup:
+  1. initial() - Populates board with starting position
+  2. numbers() - Renders coordinate labels
+  3. load_board() - Draws initial board state
+
+Main Game Loop (while running):
+  Process:
+    1. Check for pygame events:
+       - MOUSEBUTTONDOWN: Player clicks on board → click() function
+       - KEYDOWN (Ctrl+Z): Undo last move → backtrack()
+       - KEYDOWN (A): Debug castling check
+       - QUIT: Close game
+    2. Update display
+    3. Limit frame rate to 60 FPS
+  Repeats: Until player quits the game
+
+
+================================================================================
+GAME MECHANICS & RULES
+================================================================================
+
+TURN ORDER:
+- White moves first (turn = -1)
+- Black responds (turn = 1)
+- Turns alternate after each valid move
+
+PIECE MOVEMENT:
+- Pawns: Move forward, capture diagonally, two squares on first move
+- Knights: L-shaped moves, can jump pieces
+- Bishops: Diagonal moves, can't jump
+- Rooks: Horizontal/vertical moves, can't jump
+- Queens: Combination of bishop and rook
+- Kings: One square in any direction
+
+SPECIAL MOVES:
+- Castling: King moves 2 squares, rook moves to adjacent square
+  - Only when king and rook haven't moved
+  - All squares between must be empty
+  - Currently tracked but movement not fully implemented
+- Pawn Promotion: When pawn reaches opposite end (detected but not implemented)
+- En Passant: Not implemented
+
+CHECK DETECTION:
+- Automatically detects when a king is under attack
+- Sets flag = ['check', king_location]
+- During check, only moves that block or capture checking piece are legal
+- Visual indication: Yellow highlight on king's square
+
+CAPTURE:
+- Can capture opponent pieces by moving to their square
+- Captured piece removed from board
+- Move is recorded with capture info for backtracking
+- Visual indicator: Red rectangle around capturable piece
+
+PINS:
+- Piece that can't move without exposing own king to check
+- Automatically detected by ispinning() function
+- Pinned pieces cannot move even to legal squares
+- Tracked in pins dictionary
+
+
+================================================================================
+USER CONTROLS
+================================================================================
+
+MOUSE:
+- Click on any of your pieces to select it
+- Selected piece shows available moves:
+  - Light blue circles = move to empty square
+  - Red rectangles = capture opponent piece
+- Click on highlighted square to move piece there
+
+KEYBOARD:
+- Ctrl + Z: Undo last move
+- A: Debug castling availability (prints to console)
+- ESC or close window: Quit game
+
+
+================================================================================
+TECHNICAL DETAILS
+================================================================================
+
+DISPLAY SETUP:
+- Window size: (screen_width + 2*offset) x (screen_height + 2*offset)
+- Base board size: 500 x 500 pixels
+- Offset (margin): ~20 pixels (calculated as cell/3)
+- Cell size: board_side / 8 pixels
+- Font: Default pygame font, size = cell/2.4
+- FPS cap: 60 frames per second
+
+IMAGE HANDLING:
+- Uses PIL (Python Imaging Library) to detect image dimensions
+- Validates that board image is square
+- Sprite sheet parsing: Automatically calculates piece width/height
+- Smooth scaling: Scales piece images to cell size during rendering
+- Uses subsurface() for efficient sprite sheet extraction
+
+COORDINATE SYSTEM:
+- Pixels: (0,0) at top-left of window
+- Board array: (0,0) at top-left of board (black back rank)
+- Row index: Increases downward (0=rank 8, 7=rank 1)
+- Column index: Increases rightward (0=a-file, 7=h-file)
+- Conversion: board_row = (pixel_y - offset) / cell_size
+            board_col = (pixel_x - offset) / cell_size
+
+
+================================================================================
+KNOWN LIMITATIONS & FUTURE IMPROVEMENTS
+================================================================================
+
+NOT YET IMPLEMENTED:
+- Pawn promotion to queen/rook/bishop/knight
+- En passant capture
+- Castling movement (detection works, but pieces don't actually move)
+- Checkmate detection
+- Stalemate detection
+- Threefold repetition
+- 50-move rule
+- Move validation during check for all edge cases
+- Elo rating or AI opponent
+
+POTENTIAL IMPROVEMENTS:
+- Add AI opponent (minimax with alpha-beta pruning)
+- Implement complete rule set (promotion, en passant, etc.)
+- Add move history display
+- Add timer for timed games
+- Add save/load game functionality
+- Improve graphics and animations
+- Add sound effects
+- Network multiplayer support
+
+PERFORMANCE:
+- Current implementation is efficient for single player
+- Board state stored in 2D list (easy to modify)
+- Move calculation runs in real-time without noticeable lag
+- Rendering at 60 FPS is smooth on modern systems
+
+
+================================================================================
+CODE ORGANIZATION SUMMARY
+================================================================================
+
+SECTION 1: IMPORTS & INITIALIZATION (Lines 1-45)
+- Import pygame and PIL
+- Define piece encoding comments
+- Initialize pygame and load images
+- Calculate board dimensions
+
+SECTION 2: RENDERING FUNCTIONS (Lines 45-80)
+- numbers(): Draw coordinate labels
+- initial(): Set up starting position
+- load_board(): Render board and pieces
+- highlight(), rectangle(), draw_circle(): Visual indicators
+
+SECTION 3: UTILITY & DIRECTION (Lines 80-130)
+- tellsign(): Get piece color
+- line(): Get squares in direction
+- direction(): Calculate direction between points
+- banned_pos(): Find squares under attack
+
+SECTION 4: MOVE CALCULATION (Lines 130-300)
+- calnextmoves(): Main move calculation engine
+- Handles all piece types
+- Detects checks and pins
+- Validates moves
+
+SECTION 5: SPECIAL MOVE DETECTION (Lines 300-350)
+- valid_points_in_check(): Moves during check
+- ispinning(): Detect pinned pieces
+- canitcastle(): Check castling validity
+
+SECTION 6: USER INTERACTION (Lines 350-450)
+- click(): Handle mouse clicks
+- Piece selection and movement
+- Turn management
+- Check detection
+
+SECTION 7: BACKTRACKING (Lines 450-470)
+- backtrack(): Undo moves
+
+SECTION 8: MAIN GAME LOOP (Lines 470-500)
+- Game initialization
+- Event handling
+- Display update
+- FPS control
+
+
+================================================================================
+HOW TO EXTEND THE PROJECT
+================================================================================
+
+TO ADD PAWN PROMOTION:
+1. In click() function, detect when pawn reaches rank 8 or rank 1
+2. Show UI to select promotion piece (queen, rook, bishop, knight)
+3. Replace pawn value with selected piece
+
+TO ADD CHECKMATE DETECTION:
+1. After move detection, check if opposing king is in check
+2. Calculate all possible moves for opposing side
+3. If no legal moves and king in check = checkmate
+4. Display message and stop game
+
+TO ADD AI OPPONENT:
+1. Implement minimax algorithm with board evaluation
+2. After player move, call AI function
+3. AI returns best move
+4. Apply move to board
+5. Switch turn back to player
+
+TO ADD GAME TIMER:
+1. Add clock object tracking game time
+2. Display remaining time on screen
+3. When time expires, declare timeout loss
+
+TO ADD MOVE HISTORY:
+1. Store moves in formatted string list
+2. Display in sidebar or separate window
+3. Allow clicking moves to jump to that position
+
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+For questions or improvements, refer to the code comments throughout chess.py
+Last Updated: 2026-08-18
