@@ -17,8 +17,7 @@ moves = []
 kingloc = [[7,4],[0,4],'wnotmoved','bnotmoved']#contains kings location = [white_king , black_king ,white_king_moved , black_king_moved]
 isrookmoved = ['wlnotmoved','wrnotmoved','blnotmoved','brnotmoved']#[white_left_rook_moved , white_right_rook_moved , black_left_rook_moved , black_right_rook_moved]
 flag = []
-board_imgpath = r'assets\chessboard3.png'
-peices_imgpath = r'assets\chess_pieces.png'
+board_imgpath = r'assets\chessboard4.png' ; peices_imgpath = r'assets\chess_pieces.png'
 pins = {}#it contains info of pinned peices in format {peice location : pinning peice location}
 
 # pygame setup
@@ -30,7 +29,7 @@ with Image.open(board_imgpath) as img:
 
 with Image.open(peices_imgpath) as img:
     width, height = img.size
-    peices_side = width//6
+    peices_side = int(width/6) #tells peice side length based on spritesheet
 
 cell = (board_side/8) ; offset = int(cell/3)
 
@@ -42,9 +41,9 @@ peices = pg.image.load(peices_imgpath)
 text_font = pg.font.Font(None , int(cell/2.4))
 #title
 pg.display.set_caption("CHESS")
-icon = pg.Surface((32, 32))
-icon.fill((0, 0, 0)) ;pg.draw.circle(icon, (255, 0, 0), (16,16), 7)
-pg.display.set_icon(icon)
+icon = pg.image.load(r'assets\logo.jpg')
+# icon.fill((0, 0, 0)) ;pg.draw.circle(icon, (255, 0, 0), (16,16), 7)
+pg.display.set_icon( pg.transform.smoothscale(icon, (32, 32)) )
 
 #---------------------------------------------------------------------------------------------
 board = []
@@ -62,19 +61,36 @@ def initial():#setup's board variable in that list in required format
     for i in range(4):board.append([0,0,0,0 ,0,0,0,0])
     board.append([-6,-6,-6,-6 ,-6,-6,-6,-6]);board.append([-3,-4,-5,-1,-2,-5,-4,-3])
 
+def peicelocsprite(val): #returns the location of peice in spritesheet (width,height)
+    if val == 0: return None
+    elif val == 1: return (1*peices_side , 1*peices_side)
+    elif val == 2: return (0*peices_side , 1*peices_side)
+    elif val == 3: return (4*peices_side , 1*peices_side)
+    elif val == 4: return (3*peices_side , 1*peices_side)
+    elif val == 5: return (2*peices_side , 1*peices_side)
+    elif val == 6: return (5*peices_side , 1*peices_side)
+
+    elif val == -1: return (1*peices_side , 0*peices_side)
+    elif val == -2: return (0*peices_side , 0*peices_side)
+    elif val == -3: return (4*peices_side , 0*peices_side)
+    elif val == -4: return (3*peices_side , 0*peices_side)
+    elif val == -5: return (2*peices_side , 0*peices_side)
+    elif val == -6: return (5*peices_side , 0*peices_side)
+
 def load_board():
     screen.blit(boardimg,(offset,offset))
     for i in range(len(board)):
         for j in range(len(board[i])):
             val = board[i][j]
 
+            p = peicelocsprite(val)
             if val>0:
-                croppedsec = peices.subsurface( pg.Rect((val-1)*peices_side,0,peices_side,peices_side) )
+                croppedsec = peices.subsurface( pg.Rect(p[0] , p[1] , peices_side , peices_side) )
                 peiceimg = pg.transform.smoothscale(croppedsec, (cell , cell) )
                 screen.blit(peiceimg , (j*cell +offset , i*cell +offset))
 
             elif val<0:
-                croppedsec = peices.subsurface( pg.Rect(-(val+1)*peices_side,peices_side,peices_side,peices_side) )
+                croppedsec = peices.subsurface( pg.Rect(p[0] , p[1] , peices_side , peices_side) )
                 peiceimg = pg.transform.smoothscale(croppedsec, (cell , cell) )#scaling cropped image to cell size
                 screen.blit(peiceimg , (j*cell +offset , i*cell +offset))
             else:pass
