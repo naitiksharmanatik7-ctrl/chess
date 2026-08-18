@@ -26,8 +26,8 @@ offset = 20;board_side = 500;cell = (board_side/8)
 screen = pg.display.set_mode((board_side +2*offset , board_side +2*offset)) ;screen.fill('gray')
 clock = pg.time.Clock()
 running = True
-boardimg = pg.image.load(r'images\board500.svg')
-peices = pg.image.load(r'images\ChessPiecesArray.png')
+boardimg = pg.image.load(r'assets\chessboard1.png')
+peices = pg.image.load(r'assets\chess_pieces.png')
 text_font = pg.font.Font(None,25)
 #title
 pg.display.set_caption("CHESS")
