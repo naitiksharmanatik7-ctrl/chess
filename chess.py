@@ -17,8 +17,9 @@ moves = []
 kingloc = [[7,4],[0,4],'wnotmoved','bnotmoved']#contains kings location = [white_king , black_king ,white_king_moved , black_king_moved]
 isrookmoved = ['wlnotmoved','wrnotmoved','blnotmoved','brnotmoved']#[white_left_rook_moved , white_right_rook_moved , black_left_rook_moved , black_right_rook_moved]
 flag = []
-board_imgpath = r'assets\chessboard4.png' ; peices_imgpath = r'assets\chess_pieces.png'
+board_imgpath = r'assets\chessboard1.png' ; peices_imgpath = r'assets\chess_pieces.png'
 pins = {}#it contains info of pinned peices in format {peice location : pinning peice location}
+debug = False
 
 # pygame setup
 pg.init()
@@ -320,11 +321,19 @@ def calnextmoves(x,y,show = True):
     #--------------------------------------------------------------------------------------------------------------------------------------------------------
     
     #for checking pins of queen , rook and bishop
-    if (board[x][y] in {-5,-3,-1,5,3,1}) and (board[x][y] not in pins.keys()):
+    if (board[x][y] in {-5,-3,-1,5,3,1}) and ((x , y) not in pins.keys()):
         is_pinning, pin_info = ispinning((x,y))
         if is_pinning:
-            print('pinning:',pin_info[0],'by:',pin_info[1])
+            print(pin_info[0] , 'is pinned by:', pin_info[1])
             pins[pin_info[0]] = pin_info[1]
+            
+    #checking if pinned peices are still pinned or not        
+    for i in pins.keys():
+        is_pinning, pin_info = ispinning((pins[i][0] , pins[i][1]))
+        if not is_pinning: #if peice is not now pinned
+            print('unpinning:',i,'by:',pins[i])
+            del pins[i] ; break
+                
 
     if (lines_of_check != None) and (board[x][y] != sign*2):
         v ,n ,c = set(lines_of_check) ,set(next_moves) ,set(capture_moves)
@@ -353,6 +362,11 @@ def click(x,y):#checks clicks on board only
     global next_moves ,change_peice ,turn ,flag
     load_board();highlight(x,y)
 
+    if debug: #To track variables on every click on the board
+        print('click:',x,y,'| peice:',board[x][y],'| turn:',turn)
+        print('pins:',pins)
+        print()
+        
     #condition for placing peices
     if ((x,y) in next_moves)and(change_peice!=[]):
         signol = (change_peice[0] > 0) - (change_peice[0] < 0)#sign of old location
@@ -372,8 +386,8 @@ def click(x,y):#checks clicks on board only
             if (x in [7,0]) and (board[x][y]in[6,-6]):print('promotion case')
 
             #does king or rook moved (used for castelling)
-            if (board[x][y] == 2): kingloc[1] = [x,y] ;kingloc[3] = 'bmoved' ;print(kingloc)
-            elif (board[x][y] == -2): kingloc[0] = [x,y] ;kingloc[2] = 'wmoved' ;print(kingloc)
+            if (board[x][y] == 2): kingloc[1] = [x,y] ;kingloc[3] = 'bmoved' 
+            elif (board[x][y] == -2): kingloc[0] = [x,y] ;kingloc[2] = 'wmoved' 
             if (board[x][y] == -3):
                 if (y == 0): isrookmoved[0] = 'wlmoved' 
                 elif (y == 7): isrookmoved[1] = 'wrmoved' 
