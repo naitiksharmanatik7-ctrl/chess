@@ -6,10 +6,6 @@ This file only knows how to draw the board/pieces and how to turn mouse
 clicks into calls into board_logic — it doesn't know anything about
 whether a move is "legal" beyond basic piece movement.
 
-Removed for now (rewrite from scratch): check detection, pin detection,
-castling. There is currently nothing stopping a king from moving into
-check, nothing preventing a pinned piece from moving, and no way to
-castle.
 """
 import pygame as pg
 from PIL import Image
@@ -20,6 +16,9 @@ print('\n\n\n\n\n\n+1 sign = black peices and -1 sign = white peices \n')
 
 board_imgpath = r'assets\chessboard1.png'
 peices_imgpath = r'assets\chess_pieces.png'
+
+# To print debug info to console of any function
+debug = ['click']
 
 # ---- pygame / asset setup ----
 pg.init()
@@ -125,6 +124,8 @@ def click(x, y):
     """Board-click state machine: first click selects a piece, second click moves it."""
     global next_moves, change_peice, turn
 
+    if 'click' in debug: print(f'click (x, y) -> {x} , {y}')
+
     load_board()
     highlight(x, y)
 
@@ -146,9 +147,10 @@ def click(x, y):
     next_moves = []
     change_peice = []
 
+    #if it is a piece of the current turn, select it and show its moves
     if board[x][y] != 0 and bl.tellsign(board[x][y]) == turn:
         change_peice = [board[x][y], [x, y]]
-        quiet, capture = bl.calnextmoves(board, x, y)
+        quiet , capture = bl.calnextmoves(board, x, y)
         next_moves = quiet + capture
         draw_moves(quiet, capture)
 

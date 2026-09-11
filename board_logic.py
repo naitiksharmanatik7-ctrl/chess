@@ -11,7 +11,7 @@ only knows "how does this piece type move on an otherwise-empty board" —
 it does not know whether a move would leave your own king in check, and
 the king's moves are just its 8 adjacent squares with no restriction.
 """
-
+from chess import debug
 
 def new_board():
     return [
@@ -39,6 +39,8 @@ def line(board, point, direc, ignore_peices=(0,)):
     including the starting point and the blocking piece's square (if any).
     Used by queen/rook/bishop move generation.
     """
+    if 'line' in debug: print(f'line (point, direc, ignore_peices) -> {point} {direc} {ignore_peices}')
+
     tx, ty = point
     sign = tellsign(board[tx][ty])
     result = [(tx, ty)]
@@ -67,6 +69,8 @@ def calnextmoves(board, x, y):
     Returns (next_moves, capture_moves) as lists of (row, col) tuples.
     Pure function: no drawing, no globals, no check/pin/castling logic.
     """
+    if 'calnextmoves' in debug: print(f'calnextmoves (x, y) -> {x} , {y}')
+
     sign = tellsign(board[x][y])
     next_moves = []
     capture_moves = []
@@ -127,6 +131,7 @@ def calnextmoves(board, x, y):
                 elif tellsign(board[tx][ty]) == -sign:
                     capture_moves.append((tx, ty))
 
+    if 'calnextmoves' in debug: print(f'calnextmoves (next_moves , capture_moves) -> {next_moves} , {capture_moves}')
     return next_moves, capture_moves
 
 
