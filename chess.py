@@ -101,13 +101,14 @@ def load_board():
 
 
 def click(row, col):
-    if 'click' in gl.debug: print(f'(click) -> row: {row} , col: {col} , val: {gl.board[row][col]} , nextmoves: {gl.next_moves} , peice: {gl.current_peice}')
+    if 'click' in gl.debug: print(f'==>(click) -> row: {row} , col: {col} , val: {gl.board[row][col]} , prev_valid_moves: {gl.prev_valid_moves} , prev_peice: {gl.prev_peice}')
     load_board()
     highlight(row, col)
 
     # second click: attempt to move the selected piece to (x, y)
-    if (row , col) in gl.next_moves and gl.current_peice:
-        peice = gl.current_peice
+    if ((row , col) in gl.prev_valid_moves) and (gl.prev_peice != ()):
+        peice = gl.prev_peice
+
         if 'click' in gl.debug:
             print(f'    peice moved from:{peice} to {(row , col)} \n')
 
@@ -115,18 +116,19 @@ def click(row, col):
         gl.board[peice[0]] [peice[1]] = 0
         load_board()
 
-        gl.current_peice , gl.next_moves , gl.capture_moves = () , [] , [] #reseting used variables
+        gl.prev_peice , gl.prev_valid_moves = () , [] #reseting used variables
         gl.turn *= -1 #toggling the turn 
         return 
 
     # first click: select a piece and calculate its next moves
     if (gl.board[row][col] != 0) and (gl.tellsign(gl.board[row][col]) == gl.turn):
-        next, capture = gl.calnextmoves(row , col)
+        next , capture = gl.calnextmoves(row , col)
 
         for i in next: draw_circle(i[0] , i[1])
         for i in capture: draw_rectangle(i[0] , i[1])
-        gl.next_moves = next + capture
-        #draw_moves(quiet, capture)
+
+        gl.prev_valid_moves = next + capture
+        gl.prev_peice = (row , col)
 
 load_board() #initial board load
 
