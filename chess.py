@@ -4,7 +4,7 @@ import game_logic as gl
 
 '''
 --> board: 500 x 500 | cell = 62.5 x 62.5 | peice in array = 60 x 60
---> glack_queen: 1  | black_king: 2  | black_rook: 3  | black_knight: 4  | black_bishop: 5  | black_pawn: 6
+--> black_queen: 1  | black_king: 2  | black_rook: 3  | black_knight: 4  | black_bishop: 5  | black_pawn: 6
 --> white_queen: -1 | white_king: -2 | white_rook: -3 | white_knight: -4 | white_bishop: -5 | white_pawn: -6
 --> Nothing: 0
 example to place a black knight:  screen.blit(peices,(5*62.5 +20 , 2*62.5 +20),pg.Rect(3*60,0,60,60))
@@ -116,13 +116,20 @@ def click(row, col):
         gl.board[peice[0]] [peice[1]] = 0
         load_board()
 
+        #if it was a king , then update the kingspos list
+        if abs( gl.board[peice[0]] [peice[1]] ) == 2:
+            if gl.board[peice[0]] [peice[1]] > 0: #if it was a white king
+                gl.kingspos[1] = (row , col)
+            else: #if it was a black king
+                gl.kingspos[0] = (row , col)
+
         gl.prev_peice , gl.prev_valid_moves = () , [] #reseting used variables
         gl.turn *= -1 #toggling the turn 
         return 
 
     # first click: select a piece and calculate its next moves
     if (gl.board[row][col] != 0) and (gl.tellsign(gl.board[row][col]) == gl.turn):
-        next , capture = gl.calnextmoves(row , col)
+        next , capture = gl.calnextmoves(row , col , tab = 1)
 
         for i in next: draw_circle(i[0] , i[1])
         for i in capture: draw_rectangle(i[0] , i[1])
