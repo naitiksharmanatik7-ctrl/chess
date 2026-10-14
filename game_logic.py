@@ -43,8 +43,32 @@ def line(point , direc , turn = None , signs_in_list = [0]):
 
     return result
 
-def pins(turn): #Returns peices which are pinned for a king 
-    pass
+def pins(turn): #Returns peices locations which are pinned for a king 
+    result = {} #(pinned peice : line of attack) line of attack -> (king , ... pinned peice ... , opponent's peice)
+
+    dir = ['n','e','w','s']
+    for i in dir:
+        line1 = line(kingspos[turn == -1] , i , turn = turn , signs_in_list = [0 , turn]) #getting the line from king to the direction till the end or opponent's peice
+        line_of_attack = line1.copy()
+        
+        if len(line1) < 3: continue #if the line is less than 3 , then continue
+        if board[line1[-1][0]] [line1[-1][1]] in [3 * -turn , 1 * -turn]: #if the last peice in the line is a (rook , queen) of opponent's sign
+            line1.pop(-1) ; line1.pop(0) 
+            line1 = [i for i in line1 if board[i[0]] [i[1]] != 0] #getting the positions of the peices in the line
+            if len(line1) == 1: result[line1[0]] = line_of_attack #if there is only one peice in the line , then it is pinned
+
+    dir = ['ne','se','sw','nw']
+    for i in dir:
+        line1 = line(kingspos[turn == -1] , i , turn = turn , signs_in_list = [0 , turn]) #getting the line from king to the direction till the end or opponent's peice
+        line_of_attack = line1.copy()
+
+        if len(line1) < 3: continue #if the line is less than 3 , then continue
+        if board[line1[-1][0]] [line1[-1][1]] in [5 * -turn , 1 * -turn]: #if the last peice in the line is a (bishop , queen) of opponent's sign
+            line1.pop(-1) ; line1.pop(0)
+            line1 = [i for i in line1 if board[i[0]] [i[1]] != 0] #getting the positions of the peices in the line
+            if len(line1) == 1: result[line1[0]] = line_of_attack #if there is only one peice in the line , then it is pinned
+
+    return result
 
 def is_square_attacked(x , y , turn ,tab = 0): #checks if the square is attacked by opponent's peice or not
     result = False #; turn = -turn #to check for opponent's peices
@@ -182,7 +206,7 @@ def calnextmoves(x , y , tab = 0): #tells the next possible moves for the given 
     ischecked , by_whom = is_square_attacked(*our_king_pos , turn = turn , tab = 2) #checking if our king is in check or not
     if ischecked:
         if 'calnextmoves' in debug:
-            print(f'{tab * "    "}our king is in check by {by_whom} , possible_next_moves: {next_moves} , possible_capture_moves: {capture_moves}')
+            print(f'{tab * "    "} our king is in check by {by_whom} , possible_next_moves: {next_moves} , possible_capture_moves: {capture_moves}')
         
         if len(by_whom) > 1: #if there are more than one peices attacking our king
             pass
@@ -209,6 +233,17 @@ def calnextmoves(x , y , tab = 0): #tells the next possible moves for the given 
                 else: capture_moves = []
                 next_moves = [] #we can't move anywhere else
 
+    #pining logic---------------------------------------------------------------------------
+    pinned_peices = pins(turn) #getting the pinned peices for the current turn
+    if current_peice in pinned_peices:
+        if 'calnextmoves' in debug: print(f'{tab * "    "} given peice is pinned')
+        line_of_attack = pinned_peices[current_peice] ; attacker = line_of_attack[-1]
+        line_of_attack.pop(0) ; line_of_attack.pop(-1) #removing the king and attacker from the line of attack
+        
+        next_moves = [i for i in next_moves if i in line_of_attack] #Intersection of line of attack and next moves
+        if attacker in capture_moves: capture_moves = [attacker]
+        else: capture_moves = []
+
     if 'calnextmoves' in debug:
-        print(f'{tab * "    "}next moves: {next_moves} ,capture moves: {capture_moves}')
+        print(f'{tab * "    "} next moves: {next_moves} ,capture moves: {capture_moves}')
     return (next_moves , capture_moves)
