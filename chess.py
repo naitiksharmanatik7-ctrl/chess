@@ -1,6 +1,7 @@
 import pygame as pg
 from PIL import Image
 import game_logic as gl
+# pyright: reportGeneralTypeIssues=false
 
 '''
 --> board: 500 x 500 | cell = 62.5 x 62.5 | peice in array = 60 x 60
@@ -107,14 +108,41 @@ def click(row, col):
 
     # second click: attempt to move the selected piece to (x, y)
     if ((row , col) in gl.prev_valid_moves) and (gl.prev_peice != ()):
-        peice = gl.prev_peice
+        peice = gl.prev_peice #contains location of previous clicked peice
 
-        if 'click' in gl.debug:
-            print(f'    peice moved from:{peice} to {(row , col)} \n')
+        history_entry = None
+        if ('left_castle' in gl.flag) and ((row , col) == (peice[0] , peice[1] - 2)):
+            #moving the king to its new position
+            gl.board[peice[0]] [peice[1] - 2] = gl.board[peice[0]] [peice[1]] ; gl.board[peice[0]] [peice[1]] = 0
+            #moving the rook to its new position
+            gl.board[peice[0]] [peice[1] - 1] = gl.board[peice[0]] [peice[1] - 4] ; gl.board[peice[0]] [peice[1] - 4] = 0
 
-        gl.board[row] [col] =  gl.board[peice[0]] [peice[1]]
-        gl.board[peice[0]] [peice[1]] = 0
+            history_entry = ('left_castle' , peice) #store the move in history
+            if 'can_castle' in gl.debug:
+                print(f'    left castle (click) -> king(from , to): {( peice , (peice[0] , peice[1] - 2) )}')
+                print(f'    left castle (click) -> rook(from , to): {( (peice[0] , peice[1] - 4) , (peice[0] , peice[1] - 1) )}')
+
+        elif ('right_castle' in gl.flag) and ((row , col) == (peice[0] , peice[1] + 2)):
+            #moving the king to its new position
+            gl.board[peice[0]] [peice[1] + 2] = gl.board[peice[0]] [peice[1]] ; gl.board[peice[0]] [peice[1]] = 0
+            #moving the rook to its new position
+            gl.board[peice[0]] [peice[1] + 1] = gl.board[peice[0]] [peice[1] + 3] ; gl.board[peice[0]] [peice[1] + 3] = 0
+
+            history_entry = ('right_castle' , peice) #store the move in history
+            if 'can_castle' in gl.debug:
+                print(f'    right castle (click) -> king(from , to): {( peice , (peice[0] , peice[1] + 2) )}')
+                print(f'    right castle (click) -> rook(from , to): {( (peice[0] , peice[1] + 3) , (peice[0] , peice[1] + 1) )}')
+
+        else: #if it was a normal move
+            temp = gl.board[row][col] 
+            gl.board[row] [col] =  gl.board[peice[0]] [peice[1]]
+            gl.board[peice[0]] [peice[1]] = 0
+            history_entry = (gl.board[row][col] , peice , (row, col) , temp)  # Store the move in history
+
+        if history_entry is not None: gl.history.append(history_entry)
         load_board()
+
+        if 'click' in gl.debug: print(f'    peice moved (peice , from , to , captured) : {history_entry} \n')
 
         #if it was a king , then update the kingspos list
         if abs( gl.board[peice[0]] [peice[1]] ) == 2:
@@ -123,7 +151,9 @@ def click(row, col):
             else: #if it was a black king
                 gl.kingspos[0] = (row , col)
 
-        gl.prev_peice , gl.prev_valid_moves = () , [] #reseting used variables
+        #Reseting used variables
+        gl.prev_peice , gl.prev_valid_moves = () , []
+        gl.flag = ''
         gl.turn *= -1 #toggling the turn 
         return 
 
@@ -151,8 +181,9 @@ while True:
             
         if event.type == pg.KEYDOWN: #for ctrl + z
             if event.key == pg.K_z and (event.mod & pg.KMOD_CTRL):
-                pass
-                #backtrack()
+                gl.undo()
+                load_board()
+                gl.prev_peice , gl.prev_valid_moves = () , [] #reseting used variables 
 
         if event.type == pg.QUIT:
             pg.quit() ; quit()

@@ -14,8 +14,14 @@ board = [
         [-3, -4, -5, -1, -2, -5, -4, -3], ]
 kingspos = [(0,4) , (7,4)] #stores the position of kings (black , white) for checks and pins
 turn = -1 #1 for black's turn, -1 for white's turn
-debug = ['click','numbers','calnextmoves'] #for printing debug info of func to console
+debug = ['click','numbers','calnextmoves','can_castle'] #for printing debug info of func to console
 prev_peice , prev_valid_moves = () , [] #stores the info about previous peice's (location , valid moves) for placing that in (second click)
+flag = '' #For castling and en passant like special moves 
+
+history = []
+'''
+ > Stores the history of moves , each element: (peice value , peice moved from , peice moved to , peice captured)
+ > For castling, the history entry will be ('left_castle'/ 'right_castle' , king's original position) '''
 
 #------------------------------------Helping Functions-----------------------------------
 
@@ -123,11 +129,69 @@ def is_square_attacked(x , y , turn ,tab = 0): #checks if the square is attacked
     if 'is_square_attacked' in debug:
         print(f'{tab * "    "}    result: {result} , by_whom: {by_whom}')
     return result , by_whom
-                
+
+def can_castle(turn , tab=0): #returns the castling options (left possible or not , right...) for the given turn
+    '''
+    Add a history check for castling in the future.
+    Does king or rooks have moved before? If yes, then castling is not possible.
+    For now, it is assumes that the king and rooks didn't moved yet.
+    '''
+
+    king_pos = kingspos[turn == -1] #getting our king's position
+    left , right = True , True #initializing the castling options (left castle possible or not , right ...)
+
+    if 'can_castle' in debug: print(f'{tab * "    "}==>Checking castling for turn: {turn}')
+
+    if turn == 1: #if it is black's turn
+        king_should_be = (0 , 4) ; left_rook_should_be = (0,0) ; right_rook_should_be = (0,7)
+    elif turn == -1: #if it is white's turn
+        king_should_be = (7 , 4) ; left_rook_should_be = (7,0) ; right_rook_should_be = (7,7)
+    else: raise ValueError('(can_castle) --> Invalid turn value. Must be 1 (black) or -1 (white).')
+
+    if (king_pos != king_should_be): return (False, False) #king is not in its original position
+    if is_square_attacked(*king_pos , turn = turn)[0]: return (False, False) #king is in check or not
+
+    if board[left_rook_should_be[0]][left_rook_should_be[1]] == (turn * 3): #left side castling check
+        for i in range(1, 4):
+            if board[king_pos[0]][king_pos[1] - i] != 0: left = False ; break #there is a peice between king and rook
+            if is_square_attacked(king_pos[0], king_pos[1] - i, turn=turn)[0]: left = False ; break #the square is attacked by opponent's peice
+
+    if board[right_rook_should_be[0]][right_rook_should_be[1]] == (turn * 3): #right side castling check
+        for i in range(1, 3):
+            if board[king_pos[0]][king_pos[1] + i] != 0: right = False ; break #there is a peice between king and rook
+            if is_square_attacked(king_pos[0], king_pos[1] + i, turn=turn)[0]: right = False ; break #the square is attacked by opponent's peice
+
+    if 'can_castle' in debug: print(f'{tab * "    "}    left: {left} , right: {right}')
+    return (left, right)
+
+def undo():
+    global turn
+
+    if len(history) <= 0: print('>>> No previous move to reset') ; return
+    turn *= -1
+
+    #Resetting Special Moves 
+    if history[-1][0] == 'left_castle':
+        type , king_pos = history.pop() 
+        board[king_pos[0]][king_pos[1]] = turn * 2 ; board[king_pos[0]][king_pos[1] - 2] = 0 #Moving king back
+        board[king_pos[0]][king_pos[1] - 4] = turn * 3 ; board[king_pos[0]][king_pos[1] - 1] = 0 #Moving rook back
+        print('>>> Reseted previous move (left_castle)') ; return
+    
+    elif history[-1][0] == 'right_castle':
+        type , king_pos = history.pop()
+        board[king_pos[0]][king_pos[1]] = turn * 2 ; board[king_pos[0]][king_pos[1] + 2] = 0 #Moving king back
+        board[king_pos[0]][king_pos[1] + 3] = turn * 3 ; board[king_pos[0]][king_pos[1] + 1] = 0 #Moving rook back
+        print('>>> Reseted previous move (right_castle)') ; return
+
+    peice_val , from_pos , to_pos , captured = history.pop()  # Get the last move from history
+    board[from_pos[0]][from_pos[1]] = peice_val 
+    board[to_pos[0]][to_pos[1]] = captured
+    print('>>> Reseted previous move')
 
 #--------------------------------------Main Functions-----------------------------------------
 
 def calnextmoves(x , y , tab = 0): #tells the next possible moves for the given peice
+    global flag
     sign = tellsign(board[x][y])
     current_peice , next_moves , capture_moves = (x , y) , [] , []
     
@@ -201,6 +265,16 @@ def calnextmoves(x , y , tab = 0): #tells the next possible moves for the given 
                 if (board[tx][ty] == 0) and (not is_square_attacked(tx , ty , turn , tab = 2)[0]): next_moves.append( (tx,ty) )
                 elif (tellsign(board[tx][ty]) == -sign) and (not is_square_attacked(tx , ty , turn , tab = 2)[0]): capture_moves.append( (tx,ty) )
 
+        #checking for castling
+        if (x,y) == kingspos[turn == -1]: #if the king is in its original position
+            castle_options = can_castle(turn , tab = 2)
+            if castle_options[0]: #left castling
+                flag += 'left_castle '
+                next_moves.append((x, y - 2))
+            if castle_options[1]:
+                flag += 'right_castle '
+                next_moves.append((x, y + 2))
+
     #check detection logic---------------------------------------------------------
     our_king_pos = kingspos[turn == -1] #getting our king's position
     ischecked , by_whom = is_square_attacked(*our_king_pos , turn = turn , tab = 2) #checking if our king is in check or not
@@ -239,7 +313,7 @@ def calnextmoves(x , y , tab = 0): #tells the next possible moves for the given 
         if 'calnextmoves' in debug: print(f'{tab * "    "} given peice is pinned')
         line_of_attack = pinned_peices[current_peice] ; attacker = line_of_attack[-1]
         line_of_attack.pop(0) ; line_of_attack.pop(-1) #removing the king and attacker from the line of attack
-        
+
         next_moves = [i for i in next_moves if i in line_of_attack] #Intersection of line of attack and next moves
         if attacker in capture_moves: capture_moves = [attacker]
         else: capture_moves = []
