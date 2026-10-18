@@ -76,6 +76,15 @@ def pins(turn): #Returns peices locations which are pinned for a king
 
     return result
 
+def moved_before(peiceval , loc): #Tell does given peice moved before in the match or not
+    for i in history:
+        if type(i[0]) == type(''): continue #Do nothing for special moves
+
+        val , from_ , to , captured = i
+        if peiceval != val: continue #if it isn't the given skip it
+        if loc in (from_ , to): return True #if it moved from anywhere to anywhere
+    return False
+
 def is_square_attacked(x , y , turn ,tab = 0): #checks if the square is attacked by opponent's peice or not
     result = False #; turn = -turn #to check for opponent's peices
     os = -turn #opponent's sign 
@@ -131,12 +140,6 @@ def is_square_attacked(x , y , turn ,tab = 0): #checks if the square is attacked
     return result , by_whom
 
 def can_castle(turn , tab=0): #returns the castling options (left possible or not , right...) for the given turn
-    '''
-    Add a history check for castling in the future.
-    Does king or rooks have moved before? If yes, then castling is not possible.
-    For now, it is assumes that the king and rooks didn't moved yet.
-    '''
-
     king_pos = kingspos[turn == -1] #getting our king's position
     left , right = True , True #initializing the castling options (left castle possible or not , right ...)
 
@@ -160,6 +163,11 @@ def can_castle(turn , tab=0): #returns the castling options (left possible or no
         for i in range(1, 3):
             if board[king_pos[0]][king_pos[1] + i] != 0: right = False ; break #there is a peice between king and rook
             if is_square_attacked(king_pos[0], king_pos[1] + i, turn=turn)[0]: right = False ; break #the square is attacked by opponent's peice
+
+    #History check (does they moved before)
+    if moved_before(2 * turn , king_pos): return (False , False)
+    if moved_before(3 * turn , left_rook_should_be): left = False
+    if moved_before(3 * turn , right_rook_should_be): right = False
 
     if 'can_castle' in debug: print(f'{tab * "    "}    left: {left} , right: {right}')
     return (left, right)
