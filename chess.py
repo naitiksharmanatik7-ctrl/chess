@@ -101,6 +101,10 @@ def load_board():
             screen.blit(peices_pgobj, (j * cell + offset, i * cell + offset), crop)
 
 
+def move(from_ , to): #it shifts a peice from one location to another
+    gl.board[to[0]][to[1]] = gl.board[from_[0]][from_[1]]
+    gl.board[from_[0]][from_[1]] = 0 
+
 def click(row, col):
     if 'click' in gl.debug: print(f'==>(click) -> row: {row} , col: {col} , val: {gl.board[row][col]} , prev_valid_moves: {gl.prev_valid_moves} , prev_peice: {gl.prev_peice}')
     load_board()
@@ -109,34 +113,35 @@ def click(row, col):
     # second click: attempt to move the selected piece to (x, y)
     if ((row , col) in gl.prev_valid_moves) and (gl.prev_peice != ()):
         peice = gl.prev_peice #contains location of previous clicked peice
+        sign = gl.tellsign(gl.board[ peice[0] ][ peice[1] ])
 
         history_entry = None
+        #Special Moves
         if ('left_castle' in gl.flag) and ((row , col) == (peice[0] , peice[1] - 2)):
-            #moving the king to its new position
-            gl.board[peice[0]] [peice[1] - 2] = gl.board[peice[0]] [peice[1]] ; gl.board[peice[0]] [peice[1]] = 0
-            #moving the rook to its new position
-            gl.board[peice[0]] [peice[1] - 1] = gl.board[peice[0]] [peice[1] - 4] ; gl.board[peice[0]] [peice[1] - 4] = 0
-
+            move(peice , (peice[0] , peice[1] - 2))#moving the king to its new position
+            move((peice[0] , peice[1] - 4) , (peice[0] , peice[1] - 1)) #moving the rook to its new position
+            
             history_entry = ('left_castle' , peice) #store the move in history
-            if 'can_castle' in gl.debug:
-                print(f'    left castle (click) -> king(from , to): {( peice , (peice[0] , peice[1] - 2) )}')
-                print(f'    left castle (click) -> rook(from , to): {( (peice[0] , peice[1] - 4) , (peice[0] , peice[1] - 1) )}')
+            print(f'>>> Left Castle of {sign}')
 
         elif ('right_castle' in gl.flag) and ((row , col) == (peice[0] , peice[1] + 2)):
-            #moving the king to its new position
-            gl.board[peice[0]] [peice[1] + 2] = gl.board[peice[0]] [peice[1]] ; gl.board[peice[0]] [peice[1]] = 0
-            #moving the rook to its new position
-            gl.board[peice[0]] [peice[1] + 1] = gl.board[peice[0]] [peice[1] + 3] ; gl.board[peice[0]] [peice[1] + 3] = 0
-
+            move(peice , (peice[0] , peice[1] + 2)) #moving the king to its new position
+            move((peice[0] , peice[1] + 3) , (peice[0] , peice[1] + 1)) #moving the rook to its new position
+            
             history_entry = ('right_castle' , peice) #store the move in history
-            if 'can_castle' in gl.debug:
-                print(f'    right castle (click) -> king(from , to): {( peice , (peice[0] , peice[1] + 2) )}')
-                print(f'    right castle (click) -> rook(from , to): {( (peice[0] , peice[1] + 3) , (peice[0] , peice[1] + 1) )}')
+            print(f'>>> Right Castle of {sign}')
+
+        elif ('left_enpassant' in gl.flag) and ((row , col) == (peice[0] + sign , peice[1] - 1)):
+            move(peice , (peice[0] + sign , peice[1] - 1)) ; gl.board[peice[0]] [peice[1] - 1] = 0
+            print(f'>>> Left Enpassant of {sign}')
+
+        elif ('right_enpassant' in gl.flag) and ((row , col) == (peice[0] + sign , peice[1] + 1)):
+            move(peice , (peice[0] + sign , peice[1] + 1)) ; gl.board[peice[0]] [peice[1] + 1] = 0
+            print(f'>>> Right Enpassant of {sign}')
 
         else: #if it was a normal move
             temp = gl.board[row][col] 
-            gl.board[row] [col] =  gl.board[peice[0]] [peice[1]]
-            gl.board[peice[0]] [peice[1]] = 0
+            move(peice , (row , col))
             history_entry = (gl.board[row][col] , peice , (row, col) , temp)  # Store the move in history
 
         if history_entry is not None: gl.history.append(history_entry)

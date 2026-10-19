@@ -14,7 +14,7 @@ board = [
         [-3, -4, -5, -1, -2, -5, -4, -3], ]
 kingspos = [(0,4) , (7,4)] #stores the position of kings (black , white) for checks and pins
 turn = -1 #1 for black's turn, -1 for white's turn
-debug = ['click','numbers','calnextmoves','can_castle'] #for printing debug info of func to console
+debug = ['click','calnextmoves','numbers'] #for printing debug info of func to console
 prev_peice , prev_valid_moves = () , [] #stores the info about previous peice's (location , valid moves) for placing that in (second click)
 flag = '' #For castling and en passant like special moves 
 
@@ -84,6 +84,26 @@ def moved_before(peiceval , loc): #Tell does given peice moved before in the mat
         if peiceval != val: continue #if it isn't the given skip it
         if loc in (from_ , to): return True #if it moved from anywhere to anywhere
     return False
+
+def can_enpassant(x , y , tab = 1): #it takes location of pawn and tell can it enpassant
+    left , right = False , False
+    sign = tellsign(board[x][y])
+    if 'can_enpassant' in debug: print(f"{tab * '   '}==>can_enpassant input: {(x , y)}")
+
+    if abs(board[x][y]) != 6: return (False , False) #if its not a pawn , then return False
+    #checking is the attacking pawn in the correct location or not
+    if (tellsign(board[x][y]) == -1) and (x != 3):  return (False , False)
+    elif (tellsign(board[x][y]) == 1) and (x != 4): return (False , False)
+
+    if board[x][y + 1] == -sign * 6: #right en passant possible
+        val , from_ , to , cap = history[-1]
+        if (val == -sign * 6) and (from_ == (x + (sign * 2) , y + 1)) and (to == (x , y + 1)): right = True
+    if board[x][y - 1] == -sign * 6: #left en passant possible
+        val , from_ , to , cap = history[-1]
+        if (val == -sign * 6) and (from_ == (x + (sign * 2) , y - 1)) and (to == (x , y - 1)): left = True
+
+    if 'can_enpassant' in debug: print(f"{tab * '   '}    can_enpassant output: {(left , right)}")
+    return (left , right)
 
 def is_square_attacked(x , y , turn ,tab = 0): #checks if the square is attacked by opponent's peice or not
     result = False #; turn = -turn #to check for opponent's peices
@@ -218,6 +238,12 @@ def calnextmoves(x , y , tab = 0): #tells the next possible moves for the given 
             if tellsign(board[x + sign][y + sign]) == -sign: capture_moves.append((x + sign, y + sign))
         if (0 <= (x+sign) <= 7) and (0 <= (y-sign) <= 7): #left side capture move
             if tellsign(board[x + sign][y - sign]) == -sign: capture_moves.append((x + sign, y - sign))
+
+        #En-Passant
+        if can_enpassant(x , y) != (False , False):
+            left , right = can_enpassant(x , y)
+            if left:  capture_moves.append((x + sign , y - 1)) ; flag += 'left_enpassant '
+            if right: capture_moves.append((x + sign , y + 1)) ; flag += 'right_enpassant '
 
     #-------------------------------------
     if board[x][y] in (-3, 3):  # For ROOK
