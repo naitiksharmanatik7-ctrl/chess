@@ -9,6 +9,10 @@ import game_logic as gl
 --> white_queen: -1 | white_king: -2 | white_rook: -3 | white_knight: -4 | white_bishop: -5 | white_pawn: -6
 --> Nothing: 0
 example to place a black knight:  screen.blit(peices,(5*62.5 +20 , 2*62.5 +20),pg.Rect(3*60,0,60,60))
+
+# TODO list:
+1. Add a window for pawn promotion
+2. Add a Main Menu for the game
 '''
 
 #------------------variables-------------------
@@ -138,6 +142,10 @@ def click(row, col):
         elif ('right_enpassant' in gl.flag) and ((row , col) == (peice[0] + sign , peice[1] + 1)):
             move(peice , (peice[0] + sign , peice[1] + 1)) ; gl.board[peice[0]] [peice[1] + 1] = 0
             print(f'>>> Right Enpassant of {sign}')
+
+        elif (abs(gl.board[peice[0]][peice[1]]) == 6) and (row in (0,7)):
+            choice = int(input('\nenter a val from (1: queen , 3: rook , 4: knight , 5: bishop) -->\n')) * sign
+            gl.board[row][col] = choice ; gl.board[peice[0]][peice[1]] = 0
 
         else: #if it was a normal move
             temp = gl.board[row][col] 
